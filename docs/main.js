@@ -265,18 +265,7 @@ function updateOutput () {
   }
 }
 
-const redirectContainerElement = document.querySelector("#redirect-container");
-const redirectLinkElement = document.querySelector("#redirect-link");
 const loaderElement = document.querySelector("#loader");
-
-function handleRedirectPrompt (target) {
-  if (loaderElement) loaderElement.style.display = "none";
-  if (redirectContainerElement) redirectContainerElement.style.display = "flex";
-  if (redirectLinkElement) {
-    redirectLinkElement.textContent = target;
-    redirectLinkElement.href = target;
-  }
-}
 
 (() => {
   let payload = null;
@@ -295,8 +284,10 @@ function handleRedirectPrompt (target) {
   if (payload && payload.trim()) {
     try {
       const target = decompress(payload, alphabet);
-      handleRedirectPrompt(target);
-      return;
+      if (target) {
+        window.location.replace(target);
+        return;
+      }
     } catch (e) {
       console.warn(`Redirect failed. Could not decode input.`);
       console.error(e);
