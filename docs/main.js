@@ -8,9 +8,6 @@ import {
 let qrGenerate, qrMode, qrCorrection;
 
 let domain = window.location.hostname;
-if (domain !== "ha.mr" && domain !== "www.ha.mr") {
-  console.log(`This page is intended to be used on the ha.mr domain. You are currently on ${domain}.`);
-}
 const webPort = window.location.port;
 if (webPort && webPort !== "80" && webPort !== "443") {
   domain += `:${webPort}`;
@@ -30,11 +27,13 @@ const settingsElements = {
 
 for (const setting in settingsElements) {
   const element = document.querySelector(settingsElements[setting]);
-  settings[setting] = element.checked;
-  element.addEventListener("change", (event) => {
+  if (element) {
     settings[setting] = element.checked;
-    updateOutput();
-  });
+    element.addEventListener("change", (event) => {
+      settings[setting] = element.checked;
+      updateOutput();
+    });
+  }
 }
 
 function countSymbols (string, alphabet) {
@@ -48,17 +47,82 @@ function countSymbols (string, alphabet) {
 }
 
 const inputLinkElement = document.querySelector("#input-link");
+const clearInputBtn = document.querySelector("#clear-input-btn");
 const outputLinkElement = document.querySelector("#output-link");
 const outputRatioElement = document.querySelector("#output-ratio");
 const queryWarningElement = document.querySelector("#query-warning");
 
 const qrCodeImage = document.querySelector("#qrcode");
+const qrWrapper = document.querySelector("#qr-wrapper");
 const qrCodeCorrectionLevelContainer = document.querySelector("#qr-correct-level-container");
 const qrCodeCorrectionLevelElement = document.querySelector("#qr-correct-level");
+const qrLevelValElement = document.querySelector("#qr-level-val");
+const downloadQrBtn = document.querySelector("#download-qr-btn");
+const copyBtn = document.querySelector("#copy-btn");
 
-qrCodeCorrectionLevelElement.addEventListener("input", () => {
-  updateOutput();
-});
+const qrLevelMap = ["L (7%)", "M (15%)", "Q (25%)", "H (30%)"];
+
+if (qrCodeCorrectionLevelElement) {
+  qrCodeCorrectionLevelElement.addEventListener("input", () => {
+    if (qrLevelValElement) {
+      qrLevelValElement.textContent = qrLevelMap[qrCodeCorrectionLevelElement.value] || "";
+    }
+    updateOutput();
+  });
+}
+
+if (clearInputBtn) {
+  clearInputBtn.addEventListener("click", () => {
+    inputLinkElement.value = "";
+    clearInputBtn.style.display = "none";
+    inputLinkElement.focus();
+    updateOutput();
+  });
+}
+
+if (inputLinkElement) {
+  inputLinkElement.addEventListener("input", () => {
+    if (clearInputBtn) {
+      clearInputBtn.style.display = inputLinkElement.value ? "flex" : "none";
+    }
+    updateOutput();
+  });
+}
+
+if (copyBtn) {
+  copyBtn.addEventListener("click", async () => {
+    const textToCopy = outputLinkElement.href || outputLinkElement.textContent;
+    if (textToCopy && outputLinkElement.hasAttribute("href")) {
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        const actionText = copyBtn.querySelector(".action-text");
+        if (actionText) actionText.textContent = "已复制 ✓";
+        copyBtn.classList.add("copied");
+        setTimeout(() => {
+          if (actionText) actionText.textContent = "复制";
+          copyBtn.classList.remove("copied");
+        }, 1800);
+      } catch (err) {
+        console.error("Copy failed:", err);
+      }
+    }
+  });
+}
+
+if (downloadQrBtn) {
+  downloadQrBtn.addEventListener("click", () => {
+    if (qrCodeImage && qrCodeImage.style.display !== "none") {
+      try {
+        const link = document.createElement("a");
+        link.download = `qrcode_${Date.now()}.png`;
+        link.href = qrCodeImage.toDataURL("image/png");
+        link.click();
+      } catch (err) {
+        console.error("QR download failed:", err);
+      }
+    }
+  });
+}
 
 function updateOutput () {
   const input = inputLinkElement.value.trim();
@@ -66,12 +130,6 @@ function updateOutput () {
     const alphabet = settings.emoji ? outputAlphabetEmoji : outputAlphabetASCII;
     const output = compress(input, alphabet);
 
-    // compress.js does not have support for non-http(s) protocols, nor credentials.
-    // previously it would silently strip them, but this block makes it reject instead
-    // additionally, invalid inputs the compressor would otherwise accept (like "http://") are rejected as well
-
-    // Regex: one or more word [a-zA-Z0-9_] characters, followed by ://. 
-    // Underscore is not valid but will get rejected by new URL() anyway
     const hasProtocol = input.match(/\w+:\/\//); 
     const url = new URL(hasProtocol ? input : "http://" + input);
 
@@ -97,27 +155,29 @@ function updateOutput () {
         excessiveParams = true;
       }
     }
-    if (excessiveParams) {
-      queryWarningElement.style.display = "inline";
-    } else {
-      queryWarningElement.style.display = "none";
+    if (queryWarningElement) {
+      queryWarningElement.style.display = excessiveParams ? "block" : "none";
     }
+
     const ratio = (1 - (countSymbols(output, alphabet) + 6) / inputNormalized.length) * 100;
     if (ratio < -300) {
-      outputRatioElement.textContent = `Output is much larger than the input`;
-      outputRatioElement.style.color = "rgb(255, 50, 50)";
+      outputRatioElement.textContent = `比原链接显著更长`;
+      outputRatioElement.style.background = "var(--danger-bg)";
+      outputRatioElement.style.color = "var(--danger)";
     } else if (ratio < 0) {
-      outputRatioElement.textContent = `Output is ${Math.floor(-ratio)}% larger than the input`;
-      outputRatioElement.style.color = "rgb(255, 50, 50)";
+      outputRatioElement.textContent = `比原链接增长 ${Math.floor(-ratio)}%`;
+      outputRatioElement.style.background = "var(--danger-bg)";
+      outputRatioElement.style.color = "var(--danger)";
     } else if (ratio > 0) {
-      outputRatioElement.textContent = `Output is ${Math.ceil(ratio)}% smaller than the input`;
-      outputRatioElement.style.color = "rgb(15, 190, 15)";
+      outputRatioElement.textContent = `比原链接缩短 ${Math.ceil(ratio)}%`;
+      outputRatioElement.style.background = "var(--success-bg)";
+      outputRatioElement.style.color = "var(--success)";
     } else {
-      outputRatioElement.textContent = "Output is the same length as the input";
-      outputRatioElement.style.color = "gray";
+      outputRatioElement.textContent = "与原链接长度一致";
+      outputRatioElement.style.background = "rgba(255, 255, 255, 0.08)";
+      outputRatioElement.style.color = "var(--text-muted)";
     }
-    // issue #26 - the output link/QR was always built as "http://...", even when
-    // the person generating it wants "https://".
+
     const outputScheme = settings.https ? "https" : "http";
     const fullOutputLink = `${outputScheme}://${domain}#${output}`;
     outputLinkElement.textContent = fullOutputLink;
@@ -126,15 +186,15 @@ function updateOutput () {
 
     const linkToMe = url.host === domain && url.pathname === "/" && url.hash === "" && url.search === "";
     if (linkToMe) {
-      outputRatioElement.textContent = `That's me!`;
-      outputRatioElement.style.color = "rgb(15, 190, 15)";
-      outputLinkElement.textContent = `http://${domain}`;
+      outputRatioElement.textContent = `这是本站首页`;
+      outputRatioElement.style.background = "var(--success-bg)";
+      outputRatioElement.style.color = "var(--success)";
+      outputLinkElement.textContent = `${outputScheme}://${domain}`;
       outputLinkElement.href = `${outputScheme}://${domain}`;
       outputLinkElement.style.color = "";
     }
 
     if (settings.qr) {
-      // Lazyload the qr generator to avoid loading it on a redirect
       if (!qrGenerate) {
         import("./lean-qr/lean-qr.js").then((module) => {
           qrGenerate = module.generate;
@@ -147,8 +207,9 @@ function updateOutput () {
 
       const correctionLevels = [qrCorrection.L, qrCorrection.M, qrCorrection.Q, qrCorrection.H];
 
-      qrCodeImage.style.display = "inline";
-      qrCodeCorrectionLevelContainer.style.display = "inline";
+      if (qrCodeImage) qrCodeImage.style.display = "block";
+      if (qrWrapper) qrWrapper.style.display = "flex";
+      if (qrCodeCorrectionLevelContainer) qrCodeCorrectionLevelContainer.style.display = "block";
 
       const qrCodeDomain = domain.toUpperCase();
       const qrCodeScheme = settings.https ? "HTTPS" : "HTTP";
@@ -165,7 +226,6 @@ function updateOutput () {
           minVersion: 1,
           maxVersion: 40,
           minCorrectionLevel: errorCorrection,
-          // Lean-qr will choose the highest ECC that will fit in the smallest version, between minCorrectionLevel and maxCorrectionLevel
           maxCorrectionLevel: qrCorrection.H,
         });
 
@@ -176,29 +236,32 @@ function updateOutput () {
           pad: 2,
         }
       );
-      // Set image width to qr version size + 4px per side padding, scale by 8
-      // Otherwise the output will be at 1px scale and impossible to see.
       qrCodeImage.style.width = `${(qr.size + 8) * 8}px`;
       qrCodeImage.style.height = `${(qr.size + 8) * 8}px`;
       qrCodeImage.title = qrCodeLink;
 
     } else {
-      qrCodeImage.style.display = "none";
-      qrCodeCorrectionLevelContainer.style.display = "none";
+      if (qrCodeImage) qrCodeImage.style.display = "none";
+      if (qrWrapper) qrWrapper.style.display = "none";
+      if (qrCodeCorrectionLevelContainer) qrCodeCorrectionLevelContainer.style.display = "none";
     }
   } catch (e) {
     if (!input.trim()) {
-      outputLinkElement.textContent = "Enter a link above to compress";
+      outputLinkElement.textContent = "在上方输入链接以生成结果";
+      outputRatioElement.textContent = "";
+      outputRatioElement.style.background = "transparent";
     } else {
-      outputLinkElement.textContent = "Invalid link";
-      outputLinkElement.style.color = "rgb(255, 50, 50)";
+      outputLinkElement.textContent = "无效的链接格式 (需以 http:// 或 https:// 开头)";
+      outputLinkElement.style.color = "var(--danger)";
+      outputRatioElement.textContent = "";
+      outputRatioElement.style.background = "transparent";
       console.error(e);
     }
-    qrCodeImage.style.display = "none";
-    qrCodeCorrectionLevelContainer.style.display = "none";
-    outputRatioElement.style.color = "rgba(255, 255, 255, 0)";
+    if (qrCodeImage) qrCodeImage.style.display = "none";
+    if (qrWrapper) qrWrapper.style.display = "none";
+    if (qrCodeCorrectionLevelContainer) qrCodeCorrectionLevelContainer.style.display = "none";
     outputLinkElement.removeAttribute("href");
-    queryWarningElement.style.display = "none";
+    if (queryWarningElement) queryWarningElement.style.display = "none";
   }
 }
 
@@ -207,32 +270,24 @@ const redirectLinkElement = document.querySelector("#redirect-link");
 const loaderElement = document.querySelector("#loader");
 
 function handleRedirectPrompt (target) {
-  loaderElement.style.display = "none";
-  redirectContainerElement.style.display = "flex";
-  redirectLinkElement.textContent = target;
-  redirectLinkElement.href = target;
+  if (loaderElement) loaderElement.style.display = "none";
+  if (redirectContainerElement) redirectContainerElement.style.display = "flex";
+  if (redirectLinkElement) {
+    redirectLinkElement.textContent = target;
+    redirectLinkElement.href = target;
+  }
 }
-
-inputLinkElement.addEventListener("input", () => {
-  updateOutput();
-});
 
 (() => {
   let payload = null;
   let alphabet = outputAlphabetASCII;
 
-  // Get hash value of current address bar
   if (window.location.hash) {
-    // Decode hash value in case it's non-ASCII
     payload = decodeURIComponent(window.location.hash.slice(1));
-    // Remove all whitespace - we never use whitespace when encoding hash values
     payload = payload.replaceAll(" ", "");
-    // Check if input is pure ASCII - potentially unreliable?
     const useEmoji = Array.from(payload).some(c => !outputAlphabetASCII.includes(c));
     alphabet = useEmoji ? outputAlphabetEmoji : outputAlphabetASCII;
   } else {
-    // If no hash value, we're likely reading a QR code
-    // For that, use the path instead
     payload = decodeURIComponent(window.location.pathname.slice(1));
     alphabet = outputAlphabetQR;
   }
@@ -250,10 +305,15 @@ inputLinkElement.addEventListener("input", () => {
 
   updateOutput();
 
-  loaderElement.style.opacity = 0;
-  document.querySelector("#content").style.opacity = 1;
-  document.querySelector("#content").style.pointerEvents = "auto";
-  document.querySelector("header").style.opacity = 1;
-  document.querySelector("header").style.pointerEvents = "auto";
-
+  if (loaderElement) loaderElement.style.opacity = 0;
+  const contentEl = document.querySelector("#content");
+  if (contentEl) {
+    contentEl.style.opacity = 1;
+    contentEl.style.pointerEvents = "auto";
+  }
+  const headerEl = document.querySelector("header");
+  if (headerEl) {
+    headerEl.style.opacity = 1;
+    headerEl.style.pointerEvents = "auto";
+  }
 })();
