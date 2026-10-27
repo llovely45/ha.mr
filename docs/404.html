@@ -8,7 +8,7 @@
     :root {
       --bg: #090d16;
       --bg-gradient: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.18) 0%, rgba(9, 13, 22, 1) 75%);
-      --card-bg: rgba(17, 24, 39, 0.75);
+      --card-bg: rgba(17, 24, 39, 0.8);
       --card-border: rgba(255, 255, 255, 0.08);
       --card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05);
       --text-primary: #f8fafc;
@@ -35,7 +35,7 @@
       :root {
         --bg: #f8fafc;
         --bg-gradient: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.1) 0%, rgba(248, 250, 252, 1) 75%);
-        --card-bg: rgba(255, 255, 255, 0.9);
+        --card-bg: rgba(255, 255, 255, 0.92);
         --card-border: rgba(226, 232, 240, 0.8);
         --card-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0, 0, 0, 0.04);
         --text-primary: #0f172a;
@@ -73,10 +73,13 @@
       background-image: var(--bg-gradient);
       background-attachment: fixed;
       color: var(--text-primary);
+    }
+
+    body {
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 24px 16px;
+      padding: 40px 16px;
     }
 
     /* Loading overlay */
@@ -106,6 +109,7 @@
     #content {
       width: 100%;
       max-width: 620px;
+      margin: auto 0;
       background: var(--card-bg);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
@@ -116,6 +120,16 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.4s ease;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 20px 12px;
+      }
+      #content {
+        padding: 28px 20px;
+        border-radius: 20px;
+      }
     }
 
     /* App Header */
@@ -488,7 +502,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 14px;
+      gap: 16px;
       background: var(--result-bg);
       border: 1.5px solid var(--input-border);
       border-radius: 16px;
@@ -504,23 +518,29 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      max-width: 100%;
     }
 
     #qrcode {
       display: none;
       image-rendering: pixelated;
+      max-width: 260px;
+      max-height: 260px;
+      width: 100%;
+      height: auto !important;
+      aspect-ratio: 1 / 1;
     }
 
     .btn-secondary {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 7px 14px;
+      padding: 8px 16px;
       background: rgba(255, 255, 255, 0.08);
       color: var(--text-primary);
       border: 1px solid var(--card-border);
-      border-radius: 8px;
-      font-size: 0.8rem;
+      border-radius: 10px;
+      font-size: 0.82rem;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.2s ease;
@@ -534,13 +554,14 @@
 
     .btn-secondary:hover {
       background: rgba(255, 255, 255, 0.15);
+      transform: translateY(-1px);
     }
 
     /* Redirect Modal/Container */
     #redirect-container {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.75);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       display: none;
@@ -553,7 +574,7 @@
 
     .redirect-card {
       width: 100%;
-      max-width: 500px;
+      max-width: 480px;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 24px;
